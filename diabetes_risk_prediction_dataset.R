@@ -63,24 +63,28 @@ ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) +
 # K means clustering
 k <- 2
 kmeans_result <- kmeans(pcadf[0:2], centers = k)
+cluster_colors_kmeans <- ifelse(kmeans_result$cluster == 1, 'red', '#1f78b4')
 
 ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) + 
-  geom_point(alpha = 0.2, size = 3.5) + geom_point(col = kmeans_result$cluster)+ 
-  scale_color_manual(values = c('red', 'green'))
+  geom_point(alpha = 0.4, size = 3.5) + geom_point(col = cluster_colors_kmeans)+ 
+  scale_color_manual(values = c('red', '#1f78b4'))
 
 
 
 hc <- hclust(dist(pcadf[1:2]), method = "average")
 
-cluster <- cutree(hc, 2)
+cluster <- cutree(hc, k)
+cluster_colors_hc <- ifelse(cluster == 1, 'red', '#1f78b4')
+
 
 ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) + 
-  geom_point(alpha = 0.2, size = 3.5) + geom_point(col = cluster)+ 
-  scale_color_manual(values = c('red', 'green'))
+  geom_point(alpha = 0.2, size = 3.5) + 
+  geom_point(col = cluster_colors_hc) + 
+  scale_color_manual(values = c('red', '#1f78b4'))
 
 
   
-# The PCA analysis reveals that the data might not be well-suited for clustering using K-means due to its inherent complexity.
+# The PCA analysis reveals that the data might not be well-suited for clustering using K-means and hierarchical clustering due to its inherent complexity.
 # Considering the limitations of K-means in capturing non-linear structures, an alternative approach, such as DBSCAN, may yield more satisfactory results.
 
 # Dbscan clustering
@@ -92,6 +96,8 @@ ggplot(pcadf, aes(x = PC1, y = PC2, color = factor(dbscan_result$cluster))) +
 
 
 # I was wrong... the dataset doesn't really seem to fit any pattern
+# Looks a lot like a random drawn scatter plot
+
 # Going back to the drawing board
 
 model <- glm(class ~ ., data = data, family = binomial)
@@ -112,10 +118,11 @@ conf_matrix1
 # VIF for multicollinearity 
 predictors <- model.matrix(model)[, -1]  
 
-
 vif_values <- vif(model)
 
 vif_values
+
+
 
 # Getting rid of bad predictors p_value > 0.05
 summary_model <- summary(model)
@@ -126,12 +133,15 @@ coefficients_filtered
 
 to_remove <- c("sudden.weight", "weakness", "visual.blurring", "delayed.healing", "muscle.stiffness", "Alopecia", "Obesity")
 
+
+
 # Newdf
 newdf <- data[, !colnames(data) %in% to_remove]
 
 model <- glm(class ~ ., data = newdf, family = binomial)
 
 summary(model)
+
 
 
 # Predictions
