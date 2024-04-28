@@ -1,0 +1,132 @@
+library(utils)
+library(tidyverse)
+library(dbscan)
+library(car)
+# Read data
+data <- read.csv("diabetes_risk_prediction_dataset.csv")
+
+
+# Postiv And negativ count
+class_counts <- table(data$class)
+print(class_counts)
+
+
+# plot
+ggplot(data, aes(x = Age, y=Alopecia, color = class)) + 
+geom_point()
+
+
+# as.factor
+cols <- colnames(data)
+cols <- cols[-1]
+data[,cols] <- lapply(data[,cols] , factor)
+
+
+# Logistic Regression
+model <- glm(class ~ ., data = data, family = binomial)
+
+summary(model)
+
+
+# Creating a PCA
+data_for_pca <- subset(data, select = -class)
+
+
+# Pipe for numeric
+data_dummies <- data_for_pca %>%
+  mutate_if(is.character, as.factor) %>%  
+  mutate_if(is.factor, ~as.numeric(as.factor(.)))
+
+
+# Scaling
+scaled_data <- scale(data_dummies)
+
+
+# Only two best PCA:s
+pca_result <- prcomp(scaled_data , rank = 2)
+
+summary(pca_result)
+pca_result$rotation
+
+
+# Convert to dataframe
+pcadf = as.data.frame(pca_result$x) 
+pcadf$class = data$class
+
+pcadf$class <- as.factor(data$class)
+
+ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) + 
+  geom_point()
+
+
+
+# K means clustering
+k <- 2
+kmeans_result <- kmeans(pcadf[0:2], centers = k)
+
+ggplot(pcadf, aes(x = PC1, y = PC2, color = factor(kmeans_result$cluster))) + 
+  geom_point()
+
+
+# The PCA analysis reveals that the data might not be well-suited for clustering using K-means due to its inherent complexity.
+# Considering the limitations of K-means in capturing non-linear structures, an alternative approach, such as DBSCAN, may yield more satisfactory results.
+
+# Dbscan clustering
+dbscan_result <- dbscan(pcadf[0:2], eps = 0.3, minPts = 10)
+
+ggplot(pcadf, aes(x = PC1, y = PC2, color = factor(dbscan_result$cluster))) + 
+  geom_point()
+
+
+# I was wrong... the dataset doesn't really seem to fit any pattern
+
+
+# Going back to the drawing board
+
+model <- glm(class ~ ., data = data, family = binomial)
+
+summary(model)
+
+
+# VIF for multicollinearity 
+predictors <- model.matrix(model)[, -1]  
+
+
+vif_values <- vif(model)
+
+vif_values
+
+# Getting rid of bad predictors p_value > 0.05
+summary_model <- summary(model)
+
+coefficients_filtered <- summary_model$coefficients[summary_model$coefficients[,4] > 0.05, ]
+
+coefficients_filtered
+
+to_remove <- c("sudden.weight", "weakness", "visual.blurring", "delayed.healing", "muscle.stiffness", "Alopecia", "Obesity")
+
+# Newdf
+newdf <- data[, !colnames(data) %in% to_remove]
+
+model <- glm(class ~ ., data = newdf, family = binomial)
+
+summary(model)
+
+
+# Predictions
+predicted_probabilities <- predict(model, type = "response")
+
+predicted_classes <- ifelse(predicted_probabilities > 0.5, "Positive", "Negative")
+
+# Confusion matrix
+conf_matrix <- table(Actual = newdf$class, Predicted = predicted_classes)
+
+
+conf_matrix
+print(paste("True count", class_counts))
+
+
+
+# Conclusively, logistic regression emerges as the most appropriate choice for classification tasks
+# Its simplicity is a testament to the adage "less is more" in data analysis
+
