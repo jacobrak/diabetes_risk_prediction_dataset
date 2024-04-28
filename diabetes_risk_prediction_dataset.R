@@ -64,29 +64,50 @@ ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) +
 k <- 2
 kmeans_result <- kmeans(pcadf[0:2], centers = k)
 
-ggplot(pcadf, aes(x = PC1, y = PC2, color = factor(kmeans_result$cluster))) + 
-  geom_point()
+ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) + 
+  geom_point(alpha = 0.2, size = 3.5) + geom_point(col = kmeans_result$cluster)+ 
+  scale_color_manual(values = c('red', 'green'))
 
 
+
+hc <- hclust(dist(pcadf[1:2]), method = "average")
+
+cluster <- cutree(hc, 2)
+
+ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) + 
+  geom_point(alpha = 0.2, size = 3.5) + geom_point(col = cluster)+ 
+  scale_color_manual(values = c('red', 'green'))
+
+
+  
 # The PCA analysis reveals that the data might not be well-suited for clustering using K-means due to its inherent complexity.
 # Considering the limitations of K-means in capturing non-linear structures, an alternative approach, such as DBSCAN, may yield more satisfactory results.
 
 # Dbscan clustering
-dbscan_result <- dbscan(pcadf[0:2], eps = 0.3, minPts = 10)
+dbscan_result <- dbscan(dist(pcadf[0:2]), eps = 0.3, minPts = 10)
 
 ggplot(pcadf, aes(x = PC1, y = PC2, color = factor(dbscan_result$cluster))) + 
   geom_point()
 
 
+
 # I was wrong... the dataset doesn't really seem to fit any pattern
-
-
 # Going back to the drawing board
 
 model <- glm(class ~ ., data = data, family = binomial)
 
 summary(model)
 
+
+# Predict on orginal data
+predicted_probabilities <- predict(model, type = "response")
+
+predicted_classes <- ifelse(predicted_probabilities > 0.5, "Positive", "Negative")
+
+# Confusion matrix
+conf_matrix1 <- table(Actual = data$class, Predicted = predicted_classes)
+
+conf_matrix1
 
 # VIF for multicollinearity 
 predictors <- model.matrix(model)[, -1]  
@@ -119,13 +140,15 @@ predicted_probabilities <- predict(model, type = "response")
 predicted_classes <- ifelse(predicted_probabilities > 0.5, "Positive", "Negative")
 
 # Confusion matrix
-conf_matrix <- table(Actual = newdf$class, Predicted = predicted_classes)
+conf_matrix2 <- table(Actual = newdf$class, Predicted = predicted_classes)
 
 
-conf_matrix
+conf_matrix1
+
+conf_matrix2
+
 print(paste("True count", class_counts))
-
-
+# at last even though the models with more features seem to have insignificant p values it still gives a better score
 
 # Conclusively, logistic regression emerges as the most appropriate choice for classification tasks
 # Its simplicity is a testament to the adage "less is more" in data analysis
