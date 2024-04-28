@@ -1,7 +1,10 @@
+#Libraries
+
 library(utils)
 library(tidyverse)
 library(dbscan)
 library(car)
+
 # Read data
 data <- read.csv("diabetes_risk_prediction_dataset.csv")
 
@@ -31,23 +34,21 @@ summary(model)
 # Creating a PCA
 data_for_pca <- subset(data, select = -class)
 
-
 # Pipe for numeric
 data_dummies <- data_for_pca %>%
   mutate_if(is.character, as.factor) %>%  
   mutate_if(is.factor, ~as.numeric(as.factor(.)))
 
-
 # Scaling
 scaled_data <- scale(data_dummies)
 
 
-# Only two best PCA:s
+
+# PCA
 pca_result <- prcomp(scaled_data , rank = 2)
 
 summary(pca_result)
-pca_result$rotation
-
+pca_result$rotationn
 
 # Convert to dataframe
 pcadf = as.data.frame(pca_result$x) 
@@ -71,6 +72,7 @@ ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) +
 
 
 
+# Hierarchical clustering
 hc <- hclust(dist(pcadf[1:2]), method = "average")
 
 cluster <- cutree(hc, k)
@@ -103,6 +105,7 @@ ggplot(pcadf, aes(x = PC1, y = PC2, color = factor(dbscan_result$cluster))) +
 model <- glm(class ~ ., data = data, family = binomial)
 
 summary(model)
+
 
 
 # Predict on orginal data
@@ -152,12 +155,14 @@ predicted_classes <- ifelse(predicted_probabilities > 0.5, "Positive", "Negative
 # Confusion matrix
 conf_matrix2 <- table(Actual = newdf$class, Predicted = predicted_classes)
 
-
 conf_matrix1
 
 conf_matrix2
 
 print(paste("True count", class_counts))
+
+
+
 # at last even though the models with more features seem to have insignificant p values it still gives a better score
 
 # Conclusively, logistic regression emerges as the most appropriate choice for classification tasks
