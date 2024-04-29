@@ -1,0 +1,1 @@
+Diabetes_risk_prediction in R using different clustering algrothim like Hierarchical clustering, K-means and Dbscan to predict and cluster elements. Before clustering can be achieved the dataset is first scaled and then a PCA is introduced.
