@@ -48,7 +48,7 @@ scaled_data <- scale(data_dummies)
 pca_result <- prcomp(scaled_data , rank = 2)
 
 summary(pca_result)
-pca_result$rotationn
+pca_result$rotation
 
 # Convert to dataframe
 pcadf = as.data.frame(pca_result$x) 
@@ -163,7 +163,7 @@ print(paste("True count", class_counts))
 
 
 
-# at last even though the models with more features seem to have insignificant p values it still gives a better score
+# At last even though the models with more features seem to have insignificant p values it still gives a better score
 
 # Conclusively, logistic regression emerges as the most appropriate choice for classification tasks
 # Its simplicity is a testament to the adage "less is more" in data analysis
