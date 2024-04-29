@@ -1,0 +1,201 @@
+---
+title: "diabetes_risk_prediction_dataset"
+format: html
+editor: visual
+---
+
+## Libraries
+
+```{r}
+suppressPackageStartupMessages({
+library(utils)
+library(tidyverse)
+suppressWarnings(library(dbscan))
+library(car)
+})
+# Read data
+data <- read.csv("diabetes_risk_prediction_dataset.csv")
+```
+
+Postiv And negativ counts
+
+```{r}
+# Postiv And negativ count
+class_counts <- table(data$class)
+print(class_counts)
+```
+
+```{r}
+ggplot(data, aes(x = Age, y=Alopecia, color = class)) + 
+geom_point()
+```
+
+as.factor
+
+```{r}
+cols <- colnames(data)
+cols <- cols[-1]
+data[,cols] <- lapply(data[,cols] , factor)
+```
+
+logistic regression
+
+```{r}
+model <- glm(class ~ ., data = data, family = binomial)
+
+summary(model)
+```
+
+## PCA
+
+```{r}
+# Creating a PCA
+data_for_pca <- subset(data, select = -class)
+
+# Pipe for numeric
+data_dummies <- data_for_pca %>%
+  mutate_if(is.character, as.factor) %>%  
+  mutate_if(is.factor, ~as.numeric(as.factor(.)))
+
+# Scaling
+scaled_data <- scale(data_dummies)
+
+
+# PCA
+pca_result <- prcomp(scaled_data , rank = 2)
+
+summary(pca_result)
+pca_result$rotation
+
+pcadf = as.data.frame(pca_result$x) 
+pcadf$class = data$class
+
+pcadf$class <- as.factor(data$class)
+
+ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) + 
+  geom_point()
+
+```
+
+## K-means clustering
+
+```{r}
+# K means clustering
+k <- 2
+kmeans_result <- kmeans(pcadf[0:2], centers = k)
+cluster_colors_kmeans <- ifelse(kmeans_result$cluster == 1, 'red', '#1f78b4')
+
+ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) + 
+  geom_point(alpha = 0.4, size = 3.5) + geom_point(col = cluster_colors_kmeans)+ 
+  scale_color_manual(values = c('red', '#1f78b4'))
+
+```
+
+## Hierarchical clustering
+
+```{r}
+# Hierarchical clustering
+hc <- hclust(dist(pcadf[1:2]), method = "average")
+
+cluster <- cutree(hc, k)
+cluster_colors_hc <- ifelse(cluster == 1, 'red', '#1f78b4')
+
+
+ggplot(pcadf, aes(x = PC1, y = PC2, color = class)) + 
+  geom_point(alpha = 0.2, size = 3.5) + 
+  geom_point(col = cluster_colors_hc) + 
+  scale_color_manual(values = c('red', '#1f78b4'))
+```
+
+The PCA analysis reveals that the data might not be well-suited for clustering using K-means and hierarchical clustering due to its inherent complexity.
+
+Considering the limitations of K-means in capturing non-linear structures, an alternative approach, such as DBSCAN, may yield more satisfactory results.
+
+## Dbscan clustering
+
+```{r}
+dbscan_result <- dbscan(dist(pcadf[0:2]), eps = 0.3, minPts = 10)
+
+ggplot(pcadf, aes(x = PC1, y = PC2, color = factor(dbscan_result$cluster))) + geom_point()
+```
+
+I was wrong... the dataset doesn't really seem to fit any pattern
+
+Looks a lot like a random drawn scatter plot
+
+Going back to the drawing boar
+
+```{r}
+# Predict on orginal data
+predicted_probabilities <- predict(model, type = "response")
+
+predicted_classes <- ifelse(predicted_probabilities > 0.5, "Positive", "Negative")
+
+# Confusion matrix
+conf_matrix1 <- table(Actual = data$class, Predicted = predicted_classes)
+
+conf_matrix1
+```
+
+## VIF
+
+```{r}
+# VIF for multicollinearity 
+predictors <- model.matrix(model)[, -1]  
+
+vif_values <- vif(model)
+
+vif_values
+
+```
+
+## Getting rid of p_value \> 0.05
+
+```{r}
+# Getting rid of bad predictors p_value > 0.05
+summary_model <- summary(model)
+
+coefficients_filtered <- summary_model$coefficients[summary_model$coefficients[,4] > 0.05, ]
+
+coefficients_filtered
+
+to_remove <- c("sudden.weight", "weakness", "visual.blurring", "delayed.healing", "muscle.stiffness", "Alopecia", "Obesity")
+
+```
+
+## Newdf
+
+```{r}
+# Newdf
+newdf <- data[, !colnames(data) %in% to_remove]
+
+model <- glm(class ~ ., data = newdf, family = binomial)
+
+summary(model)
+
+```
+
+Classifications with the Logistic Regression
+
+```{r}
+# Classifications
+predicted_probabilities <- predict(model, type = "response")
+
+predicted_classes <- ifelse(predicted_probabilities > 0.5, "Positive", "Negative")
+
+# Confusion matrix
+conf_matrix2 <- table(Actual = newdf$class, Predicted = predicted_classes)
+
+conf_matrix1
+
+conf_matrix2
+
+print(paste("True count", class_counts))
+
+```
+
+At last even though the models with more features seem to have insignificant p values it still gives a better score.
+
+Conclusively, logistic regression emerges as the most appropriate choice for classification tasks
+
+Its simplicity is a testament to the adage "less is more" in data analysis
